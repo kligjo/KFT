@@ -5,11 +5,19 @@
         static void Main(string[] args)
         {
 
-            string sourcePath = GetPathsInput("Please enter your source file destination");
-            string destinationPath = GetPathsInput("Please enter your destination file destination");
+            string sourcePath = GetPathsInput("Please enter your source file destination: ");
+            string destinationPath = GetPathsInput("Please enter your destination file destination: ");
 
-            FileStream sourceStream = new FileStream(destinationPath, FileMode.Open, FileAccess.Read);
-            FileStream destinationStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write);
+            CopyFileToDestination(sourcePath, destinationPath);
+
+        }
+
+        static void CopyFileToDestination(string source, string destination)
+        {
+            FileStream sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read);
+            FileStream destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write);
+
+            
         }
 
         static string GetPathsInput(string userMessage)
