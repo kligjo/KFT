@@ -10,31 +10,38 @@ namespace KFT
 
             string sourcePath = GetPathsInput("Please enter your source file destination: ");
             string destinationPath = GetPathsInput("Please enter your destination file destination: ");
-
-            await CopyFileToDestination(sourcePath, destinationPath);
+            try
+            {
+                await CopyFileToDestination(sourcePath, destinationPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Greskaa");
+            }
 
         }
 
         static async Task CopyFileToDestination(string source, string destination)
         {
             using FileStream sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read);
-            using FileStream destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write);
+            using FileStream destinationStream = new FileStream(destination, FileMode.Create, FileAccess.ReadWrite);// adding read/write so that we can read the written bytes fromthe new location to hash them and check the hashes
             using var md5 = MD5.Create();
-            byte[] buffer = new byte[1024*1024];
-            
+            byte[] buffer = new byte[1024 * 1024];
+
             int bytesRead;
             int position = 0;
-            string loadingMessage = "";
 
             while ((bytesRead = sourceStream.Read(buffer)) > 0)
             {
-                var sourceHash = md5.ComputeHash(buffer);
+                var sourceHash = BitConverter.ToString(md5.ComputeHash(buffer));
+
                 await destinationStream.WriteAsync(buffer, 0, bytesRead);
 
-                var tempBuffer = new byte[bytesRead];
-                Console.WriteLine($"Position {position} hash {BitConverter.ToString(sourceHash)}");
+
+                var destinationHash = await ComputeDestionationHash(bytesRead, destinationStream, md5); ;
+
+                Console.WriteLine($"Position {position} hash {destinationHash}");
                 position += 1024;
-               
 
             }
 
@@ -50,6 +57,15 @@ namespace KFT
 
             return path;
 
+        }
+
+        static async Task<string> ComputeDestionationHash(int bytesRead, FileStream stream, MD5 md5)
+        {
+            var tempBuffer = new byte[bytesRead];
+
+            stream.Position -= bytesRead;
+            await stream.ReadAsync(tempBuffer, 0, bytesRead);
+            return BitConverter.ToString(md5.ComputeHash(tempBuffer));
         }
     }
 }
