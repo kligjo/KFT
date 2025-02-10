@@ -14,7 +14,15 @@ namespace KFT
             {
                 await CopyFileToDestination(sourcePath, destinationPath);
             }
-            catch (DirtChunkException e)
+            catch (FileNotFoundException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            catch (CorruptChunkException e)
             {
                 Console.WriteLine(e.Message);
             }
@@ -22,6 +30,28 @@ namespace KFT
             {
                 Console.WriteLine(e.Message);
             }
+            finally
+            {
+                Console.WriteLine("Finished");
+            }
+
+            await VerifyHashForBothFiles(sourcePath, destinationPath);
+
+
+        }
+
+        static async Task VerifyHashForBothFiles(string source, string destination)
+        {
+            SHA256 sha = SHA256.Create();
+
+            using FileStream sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read);
+            using FileStream destinationStream = new FileStream(source, FileMode.Open, FileAccess.Read);
+
+            var sorceFileHash = await sha.ComputeHashAsync(sourceStream);
+            var destinationFileHash = await sha.ComputeHashAsync(destinationStream);
+
+            Console.WriteLine($"Source file hash: {BitConverter.ToString(sorceFileHash)}");
+            Console.WriteLine($"Destination file hash: {BitConverter.ToString(destinationFileHash)}");
 
         }
 
@@ -51,19 +81,19 @@ namespace KFT
 
                 var destinationHash = await ComputeDestionationHash(buffer.Length, destinationStream, md5);
 
-                Console.WriteLine($"Position {destinationStream.Position / 1024} hash {sourceStream.Position / 1024}");
+                Console.WriteLine($"Position {sourceStream.Position / 1024} hash {sourceHash}");
 
 
                 if (!sourceHash.Equals(destinationHash))
                 {
-                    sourceStream.Position -= bytesRead;
+                    sourceStream.Position -= bytesRead; //in case we want to add retry again. For now I am just throwing an exception
                     destinationStream.Position -= bytesRead;
                     isDirtyChunk = true;
                 }
 
                 if (isDirtyChunk)
                 {
-                    throw new DirtChunkException("Dirty chunk found");
+                    throw new CorruptChunkException("Dirty chunk found");
                 }
             }
         }
