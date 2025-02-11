@@ -31,7 +31,7 @@ namespace KFT
                     t1.Join();
                     t2.Join();
                 });
-
+                Console.WriteLine("Transfer done, calculating file hashes...");
                 Console.WriteLine($"t1: {t1Counter} t2: {t2Counter}");
                 destinationStream.Close();
                 destinationStream.Dispose();
@@ -90,7 +90,7 @@ namespace KFT
                     buffer = actualBuffer;
                 }
 
-                var sourceHash = BitConverter.ToString(md5.ComputeHash(buffer));
+                var sourceHash = BitConverter.ToString(md5.ComputeHash(buffer)).Replace("-", "");
                 string destinationHash = "";
                 lock (destinationStream)
                 {
@@ -98,8 +98,8 @@ namespace KFT
                     destinationStream.Write(buffer, 0, bytesRead);
                     destinationHash = ComputeDestionationHash(buffer.Length, destinationStream, md5);
                 }
-
-                Console.WriteLine($"Position {thread}: {Interlocked.Increment(ref i)} {sourceStream.Position / 1024} hash {sourceHash}");
+                Interlocked.Increment(ref i);
+                Console.WriteLine($"Thread: {thread} chunk# {i} Position: {sourceStream.Position / 1024} \thash {sourceHash}");
 
 
                 if (!sourceHash.Equals(destinationHash))
@@ -151,7 +151,7 @@ namespace KFT
 
             stream.Position -= bytesRead;
             stream.Read(tempBuffer, 0, bytesRead);
-            return BitConverter.ToString(md5.ComputeHash(tempBuffer));
+            return BitConverter.ToString(md5.ComputeHash(tempBuffer)).Replace("-", "");
         }
     }
 }
