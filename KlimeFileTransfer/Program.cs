@@ -39,19 +39,19 @@ namespace KFT
             }
             catch (FileNotFoundException e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine("Sorry, you received the following error: " + e.Message);
             }
             catch (IOException e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine("Sorry, you received the following error: " + e.Message);
             }
             catch (CorruptChunkException e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine("Sorry, you received the following error: " + e.Message);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine("Sorry, you received the following error: " + e.Message);
             }
             finally
             {
@@ -79,44 +79,64 @@ namespace KFT
 
             int bytesRead;
             bool isDirtyChunk = false;
-
-            while (bytesRemaining > 0)
+            try
             {
-                bytesRead = sourceStream.Read(buffer);
-                if (bytesRead != buffer.Length)
+
+                while (bytesRemaining > 0)
                 {
-                    actualBuffer = new byte[bytesRead];
-                    Array.Copy(buffer, actualBuffer, bytesRead);
-                    buffer = actualBuffer;
+                    bytesRead = sourceStream.Read(buffer);
+                    if (bytesRead != buffer.Length)
+                    {
+                        actualBuffer = new byte[bytesRead];
+                        Array.Copy(buffer, actualBuffer, bytesRead);
+                        buffer = actualBuffer;
+                    }
+
+                    var sourceHash = BitConverter.ToString(md5.ComputeHash(buffer)).Replace("-", "");
+                    string destinationHash = "";
+                    lock (destinationStream)
+                    {
+
+                        destinationStream.Write(buffer, 0, bytesRead);
+                        destinationHash = ComputeDestionationHash(buffer.Length, destinationStream, md5);
+                    }
+                    Interlocked.Increment(ref i);
+                    Console.WriteLine($"Thread: {thread} chunk# {i} Position: {sourceStream.Position / 1024} \thash {sourceHash}");
+
+
+                    if (!sourceHash.Equals(destinationHash))
+                    {
+                        sourceStream.Position -= bytesRead; //in case we want to add retry policy. For now I am just throwing an exception
+                        destinationStream.Position -= bytesRead;
+                        isDirtyChunk = true;
+                    }
+
+                    if (isDirtyChunk)
+                    {
+                        throw new CorruptChunkException("Corrupted chunk found");
+                    }
+
+                    bytesRemaining -= bytesRead;
+                    _ = thread.Equals("t1") ? t1Counter++ : t2Counter++;
                 }
-
-                var sourceHash = BitConverter.ToString(md5.ComputeHash(buffer)).Replace("-", "");
-                string destinationHash = "";
-                lock (destinationStream)
-                {
-
-                    destinationStream.Write(buffer, 0, bytesRead);
-                    destinationHash = ComputeDestionationHash(buffer.Length, destinationStream, md5);
-                }
-                Interlocked.Increment(ref i);
-                Console.WriteLine($"Thread: {thread} chunk# {i} Position: {sourceStream.Position / 1024} \thash {sourceHash}");
-
-
-                if (!sourceHash.Equals(destinationHash))
-                {
-                    sourceStream.Position -= bytesRead; //in case we want to add retry policy. For now I am just throwing an exception
-                    destinationStream.Position -= bytesRead;
-                    isDirtyChunk = true;
-                }
-
-                if (isDirtyChunk)
-                {
-                    throw new CorruptChunkException("Corrupted chunk found");
-                }
-
-                bytesRemaining -= bytesRead;
-                _ = thread.Equals("t1") ? t1Counter++ : t2Counter++;
             }
+            catch (FileNotFoundException e)
+            {
+                Console.WriteLine("Sorry, the program exited with " + e.Message);
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine("Sorry, the program exited with " + e.Message);
+            }
+            catch (CorruptChunkException e)
+            {
+                Console.WriteLine("Sorry, the program exited with " + e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Sorry, the program exited with" + e.Message);
+            }
+
 
         }
 
